@@ -67,3 +67,22 @@ export async function getProduct(): Promise<Product | null> {
     price: variant.price,
   };
 }
+
+type CartCreateResponse = {
+  cartCreate: { cart: { checkoutUrl: string } | null; userErrors: { message: string }[] };
+};
+
+// Returns the cart's checkoutUrl, a page on the store's own domain.
+export async function createCheckout(variantId: string): Promise<string> {
+  const { cartCreate } = await storefront<CartCreateResponse>(
+    `mutation CartCreate($variantId: ID!) {
+      cartCreate(input: { lines: [{ merchandiseId: $variantId, quantity: 1 }] }) {
+        cart { checkoutUrl }
+        userErrors { message }
+      }
+    }`,
+    { variantId },
+  );
+  if (!cartCreate.cart) throw new Error(`Storefront API: ${cartCreate.userErrors[0]?.message ?? "no cart"}`);
+  return cartCreate.cart.checkoutUrl;
+}
