@@ -90,7 +90,7 @@ function Card({ children }: { children: ReactNode }) {
   return (
     <section
       aria-labelledby="product-heading"
-      className="flex flex-col gap-5 border border-e2e-hairline-strong bg-e2e-panel p-5"
+      className="flex flex-col gap-4 border border-e2e-hairline-strong bg-e2e-panel p-5"
     >
       {children}
     </section>
