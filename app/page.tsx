@@ -1,69 +1,54 @@
-import Image from "next/image";
+import { LightButton } from "@/components/ui/light-button";
 
-export default function Home() {
+// Until the card reads the product from Shopify.
+const PRODUCT = { title: "e2e Field guide", description: "A short guide to end-to-end testing.", price: "$20.00" };
+
+export default function HomePage() {
   return (
-    <div className="bg-zinc-50 dark:bg-black flex flex-1 flex-col items-center justify-center font-sans">
-      <main className="bg-white dark:bg-black flex w-full max-w-3xl flex-1 flex-col items-center justify-between px-16 py-32 sm:items-start">
-        <Image
-          className="h-5 w-[100px] dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="text-black dark:text-zinc-50 max-w-xs text-3xl leading-10 font-semibold tracking-tight">
-            To get started, edit the{" "}
-            <code className="bg-black/[.06] dark:bg-white/[.08] rounded px-1.5 py-0.5 font-mono text-[0.9em]">
-              page.tsx
-            </code>{" "}
-            file.
+    <main className="flex flex-1 flex-col justify-center px-6 py-10 sm:px-10">
+      <div className="mx-auto grid w-full max-w-300 items-center gap-12 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-20">
+        <div>
+          <h1 className="type-h1 text-e2e-text-primary">
+            Shopify checkout,
+            <br />
+            tested end to end
           </h1>
-          <p className="text-zinc-600 dark:text-zinc-400 max-w-md text-lg leading-8">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="text-zinc-950 dark:text-zinc-50 font-medium"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="text-zinc-950 dark:text-zinc-50 font-medium"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="mt-4 max-w-120 type-body text-e2e-text-secondary">
+            A real Shopify checkout on a dev store, tested with e2e: in the browser, and against the order Shopify
+            recorded.
+          </p>
+          <p className="mt-8 type-code-s text-e2e-text-faint">Test card 1, any future expiry, any CVC.</p>
+        </div>
+
+        <ProductCard {...PRODUCT} />
+      </div>
+    </main>
+  );
+}
+
+function ProductCard({ title, description, price }: { title: string; description: string; price: string }) {
+  return (
+    <section
+      aria-labelledby="product-heading"
+      className="flex flex-col gap-5 border border-e2e-hairline-strong bg-e2e-panel p-5"
+    >
+      <div className="flex flex-col gap-2">
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 id="product-heading" className="type-h3-display text-e2e-text-bright">
+            {title}
+          </h2>
+          <p data-testid="product-price" className="type-body-s font-medium text-e2e-text-bright">
+            {price}
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="bg-foreground text-background flex h-12 w-full items-center justify-center gap-2 rounded-full px-5 transition-colors hover:bg-[#383838] md:w-[158px] dark:hover:bg-[#ccc]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="h-[14px] w-4 dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="border-black/[.08] hover:bg-black/[.04] dark:border-white/[.145] flex h-12 w-full items-center justify-center rounded-full border border-solid px-5 transition-colors hover:border-transparent md:w-[158px] dark:hover:bg-[#1a1a1a]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        <p className="type-body-s text-e2e-text-soft">{description}</p>
+      </div>
+      <form action="/checkout" method="post">
+        <LightButton type="submit">Buy now</LightButton>
+      </form>
+      <p className="type-caption text-e2e-text-faint">
+        You pay on Shopify&apos;s checkout, on the store&apos;s own domain.
+      </p>
+    </section>
   );
 }
