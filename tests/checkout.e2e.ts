@@ -1,8 +1,21 @@
 import { describe, type Browser } from "@e2e-dev/web";
 import { expect, unique, type TestFixtures } from "e2e";
 
-import { BUYER, CARDS, DISCOUNT, skip, test, type Orders } from "./fixtures";
-import { fillCard, SHOPIFY_CHECKOUT, type Order } from "./shopify";
+import { DISCOUNT, skip, test, type Orders } from "./fixtures";
+import { SHOPIFY_CHECKOUT, type Order } from "./shopify";
+
+const BUYER = {
+  email: "ada@example.com",
+  firstName: "Ada",
+  lastName: "Lovelace",
+  address: "350 5th Ave",
+  city: "New York",
+  state: "New York",
+  zip: "10118",
+};
+
+// Shopify's Test payment gateway decides the outcome by the card number.
+const CARDS = { approved: "1", declined: "2", gatewayFailure: "3" };
 
 const FILL_CONTACT_AND_ADDRESS =
   "fill in the contact and address fields with email {email}, first name {firstName}, last name {lastName}, address {address}, city {city}, state {state}, and ZIP code {zip}";
@@ -11,6 +24,16 @@ const FAILED_PAYMENT_CONTEXT =
   "The card is a Shopify test card that always fails, so a payment error after Pay now is the expected outcome, not a failure.";
 
 type CheckoutFixtures = Pick<TestFixtures, "screen" | "agent"> & { browser: Browser; orders: Orders };
+
+// Shopify's card fields are iframes from another site, which the agent can't see. Each frame also holds hidden
+// decoy inputs, so the visible one is found by role.
+async function fillCard(browser: Browser, number: string): Promise<void> {
+  const field = (name: string) => browser.frameLocator(`iframe[title="${name}"]`).getByRole("textbox", name);
+  await field("Card number").fill(number);
+  await field("Expiration date (MM / YY)").fill("12 / 34");
+  await field("Security code").fill("111");
+  await field("Name on card").fill(`${BUYER.firstName} ${BUYER.lastName}`);
+}
 
 // From our Buy now button to Shopify's checkout, ready to pay. Returns the cart token.
 async function fillCheckout({ screen, agent, browser, orders }: CheckoutFixtures, card: string): Promise<string> {
@@ -26,8 +49,9 @@ async function fillCheckout({ screen, agent, browser, orders }: CheckoutFixtures
 
 // Shopify finishes the order a moment after the thank-you page.
 async function placedOrder(orders: Orders, cartToken: string): Promise<Order> {
-  await expect.poll(() => orders.find(cartToken), { timeout: 30_000 }).not.toBeNull();
-  return (await orders.find(cartToken))!;
+  let order = null as Order | null;
+  await expect.poll(async () => (order = await orders.find(cartToken)), { timeout: 30_000 }).not.toBeNull();
+  return order!;
 }
 
 const amount = (text: string) => Number(text.replace(/[^\d.]/g, ""));

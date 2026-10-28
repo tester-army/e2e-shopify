@@ -14,15 +14,10 @@ import {
   type Order,
 } from "./shopify";
 
-const REQUIRED = [
-  "SHOPIFY_STORE_DOMAIN",
-  "SHOPIFY_STOREFRONT_TOKEN",
-  "SHOPIFY_STORE_PASSWORD",
-  "SHOPIFY_CLIENT_ID",
-  "SHOPIFY_CLIENT_SECRET",
-  "AI_GATEWAY_API_KEY",
-];
+const REQUIRED = ["SHOPIFY_STORE_DOMAIN", "SHOPIFY_STORE_PASSWORD", "SHOPIFY_CLIENT_ID", "SHOPIFY_CLIENT_SECRET"];
 const missing = REQUIRED.filter((name) => !process.env[name]);
+// The AI Gateway takes an API key, or the OIDC token of a linked Vercel project.
+if (!process.env.AI_GATEWAY_API_KEY && !process.env.VERCEL_OIDC_TOKEN) missing.push("AI_GATEWAY_API_KEY");
 export const skip = missing.length > 0 ? `set ${missing.join(", ")} to run the Shopify tests` : false;
 
 const withShopify = base.extend<{ shopify: Admin }>({
@@ -47,6 +42,8 @@ export const DISCOUNT = 5;
 export const test = withShopify.extend<{ orders: Orders; discounts: Discounts }>({
   orders: async ({ shopify }, use) => {
     const cartTokens = new Set<string>();
+    // Shopify's order search can briefly miss an order it just returned, so remember every one found.
+    const found = new Map<string, Order>();
 
     await use({
       track: (checkoutUrl) => {
@@ -54,11 +51,15 @@ export const test = withShopify.extend<{ orders: Orders; discounts: Discounts }>
         cartTokens.add(cartToken);
         return cartToken;
       },
-      find: (cartToken) => orderByCartToken(shopify, cartToken),
+      find: async (cartToken) => {
+        const order = await orderByCartToken(shopify, cartToken);
+        if (order) found.set(cartToken, order);
+        return order;
+      },
     });
 
     for (const cartToken of cartTokens) {
-      const order = await orderByCartToken(shopify, cartToken);
+      const order = found.get(cartToken) ?? (await orderByCartToken(shopify, cartToken));
       if (order?.test) await deleteOrder(shopify, order.id);
     }
   },
@@ -77,16 +78,3 @@ export const test = withShopify.extend<{ orders: Orders; discounts: Discounts }>
     for (const id of ids) await deleteDiscountCode(shopify, id);
   },
 });
-
-export const BUYER = {
-  email: "ada@example.com",
-  firstName: "Ada",
-  lastName: "Lovelace",
-  address: "350 5th Ave",
-  city: "New York",
-  state: "New York",
-  zip: "10118",
-};
-
-// Shopify's Test payment gateway decides the outcome by the card number.
-export const CARDS = { approved: "1", declined: "2", gatewayFailure: "3" };

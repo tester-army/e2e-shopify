@@ -1,11 +1,9 @@
-import type { Browser } from "@e2e-dev/web";
-
 const API_VERSION = "2026-10";
 
 export const STORE = `https://${process.env.SHOPIFY_STORE_DOMAIN}`;
 
 // <store>/checkouts/cn/<cart token>/…
-export const SHOPIFY_CHECKOUT = /\.myshopify\.com\/checkouts\/cn\/[^/?]+/;
+export const SHOPIFY_CHECKOUT = /\.myshopify\.com\/checkouts\/cn\/([^/?]+)/;
 
 export type Admin = <T>(query: string, variables?: Record<string, unknown>) => Promise<T>;
 
@@ -25,8 +23,9 @@ export async function createAdmin(clientId: string, clientSecret: string): Promi
       headers: { "Content-Type": "application/json", "X-Shopify-Access-Token": token },
       body: JSON.stringify({ query, variables }),
     });
+    if (!response.ok) throw new Error(`Admin API: ${response.status}`);
     const { data, errors } = await response.json();
-    if (!response.ok || errors) throw new Error(`Admin API: ${errors?.[0]?.message ?? response.status}`);
+    if (errors) throw new Error(`Admin API: ${errors[0].message}`);
     return data;
   };
 }
@@ -40,7 +39,7 @@ export async function assertDevelopmentStore(admin: Admin): Promise<void> {
 }
 
 export function cartTokenFromCheckoutUrl(url: string): string {
-  const token = url.match(/\/checkouts\/cn\/([^/?]+)/)?.[1];
+  const token = url.match(SHOPIFY_CHECKOUT)?.[1];
   if (!token) throw new Error(`No cart token in ${url}`);
   return token;
 }
@@ -118,14 +117,4 @@ export async function createDiscountCode(admin: Admin, code: string, amount: num
 
 export async function deleteDiscountCode(admin: Admin, id: string): Promise<void> {
   await admin(`mutation ($id: ID!) { discountCodeDelete(id: $id) { deletedCodeDiscountId } }`, { id });
-}
-
-// Shopify's card fields are iframes from another site, which the agent can't see. Each frame also holds hidden
-// decoy inputs, so the visible one is found by role.
-export async function fillCard(browser: Browser, number: string): Promise<void> {
-  const field = (name: string) => browser.frameLocator(`iframe[title="${name}"]`).getByRole("textbox", name);
-  await field("Card number").fill(number);
-  await field("Expiration date (MM / YY)").fill("12 / 34");
-  await field("Security code").fill("111");
-  await field("Name on card").fill("Ada Lovelace");
 }
