@@ -1,6 +1,5 @@
 import { connection } from "next/server";
-import type { ReactNode } from "react";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 
 import { ProductGallery } from "@/components/product-gallery";
 import { LightButton } from "@/components/ui/light-button";

@@ -28,8 +28,9 @@ async function storefront<T>(query: string, variables: Record<string, unknown> =
     },
     body: JSON.stringify({ query, variables }),
   });
+  if (!response.ok) throw new Error(`Storefront API: ${response.status}`);
   const { data, errors } = await response.json();
-  if (!response.ok || errors) throw new Error(`Storefront API: ${errors?.[0]?.message ?? response.status}`);
+  if (errors) throw new Error(`Storefront API: ${errors[0].message}`);
   return data;
 }
 

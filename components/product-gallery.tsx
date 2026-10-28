@@ -6,7 +6,7 @@ import { useState } from "react";
 
 import type { ProductImage } from "@/lib/shopify";
 
-// The mockups' background, shown while a photo loads.
+// Light grey behind each photo while it loads.
 const PHOTO_BACKGROUND = "bg-[#e7e7e7]";
 
 export function ProductGallery({ images }: { images: ProductImage[] }) {

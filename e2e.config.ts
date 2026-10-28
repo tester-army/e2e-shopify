@@ -7,6 +7,7 @@ import { gateway } from "ai";
 const envFile = new URL(".env.local", import.meta.url);
 if (existsSync(envFile)) process.loadEnvFile(envFile);
 
+// Secrets are hidden in reports and output; the client secret is registered only for that.
 // A secret under 6 characters fails config load, so only set ones are registered.
 const secrets: Record<string, string> = {};
 if (process.env.SHOPIFY_STORE_PASSWORD) secrets["store-password"] = process.env.SHOPIFY_STORE_PASSWORD;
