@@ -1,7 +1,10 @@
-import { LightButton } from "@/components/ui/light-button";
+import Image from "next/image";
+import type { ReactNode } from "react";
+import { Suspense } from "react";
 
-// Until the card reads the product from Shopify.
-const PRODUCT = { title: "e2e Field guide", description: "A short guide to end-to-end testing.", price: "$20.00" };
+import { LightButton } from "@/components/ui/light-button";
+import { formatMoney } from "@/lib/money";
+import { getProduct, isStoreConfigured, PRODUCT_HANDLE } from "@/lib/shopify";
 
 export default function HomePage() {
   return (
@@ -20,35 +23,88 @@ export default function HomePage() {
           <p className="mt-8 type-code-s text-e2e-text-faint">Test card 1, any future expiry, any CVC.</p>
         </div>
 
-        <ProductCard {...PRODUCT} />
+        <Suspense fallback={<Notice title="Loading…" detail="Asking Shopify for the product." />}>
+          <ProductCard />
+        </Suspense>
       </div>
     </main>
   );
 }
 
-function ProductCard({ title, description, price }: { title: string; description: string; price: string }) {
+async function ProductCard() {
+  if (!isStoreConfigured()) {
+    return (
+      <Notice
+        title="Connect your dev store"
+        detail="Set SHOPIFY_STORE_DOMAIN and SHOPIFY_STOREFRONT_TOKEN in .env.local, then reload."
+      />
+    );
+  }
+
+  const product = await getProduct();
+  if (!product) {
+    return (
+      <Notice
+        title="Product not found"
+        detail={`The store's Headless channel has no product with the handle ${PRODUCT_HANDLE}.`}
+      />
+    );
+  }
+
   return (
-    <section
-      aria-labelledby="product-heading"
-      className="flex flex-col gap-5 border border-e2e-hairline-strong bg-e2e-panel p-5"
-    >
-      <div className="flex flex-col gap-2">
-        <div className="flex items-baseline justify-between gap-4">
+    <Card>
+      <div className="flex gap-4">
+        {product.image && (
+          <Image
+            src={product.image.url}
+            alt={product.image.altText ?? ""}
+            width={product.image.width}
+            height={product.image.height}
+            sizes="64px"
+            className="size-16 shrink-0 bg-e2e-paper-0 object-contain"
+          />
+        )}
+        <div className="flex min-w-0 flex-col gap-1">
           <h2 id="product-heading" className="type-h3-display text-e2e-text-bright">
-            {title}
+            {product.title}
           </h2>
           <p data-testid="product-price" className="type-body-s font-medium text-e2e-text-bright">
-            {price}
+            {formatMoney(product.price)}
           </p>
         </div>
-        <p className="type-body-s text-e2e-text-soft">{description}</p>
       </div>
+      {product.description && <p className="line-clamp-3 type-body-s text-e2e-text-soft">{product.description}</p>}
       <form action="/checkout" method="post">
         <LightButton type="submit">Buy now</LightButton>
       </form>
       <p className="type-caption text-e2e-text-faint">
         You pay on Shopify&apos;s checkout, on the store&apos;s own domain.
       </p>
+    </Card>
+  );
+}
+
+function Notice({ title, detail }: { title: string; detail: string }) {
+  return (
+    <Card>
+      <div className="flex flex-col gap-1">
+        <h2 id="product-heading" className="type-h3-display text-e2e-text-bright">
+          {title}
+        </h2>
+        <p className="type-body-s text-e2e-text-soft">{detail}</p>
+      </div>
+      <LightButton disabled>Buy now</LightButton>
+    </Card>
+  );
+}
+
+function Card({ children }: { children: ReactNode }) {
+  return (
+    <section
+      aria-labelledby="product-heading"
+      className="flex flex-col gap-5 border border-e2e-hairline-strong bg-e2e-panel p-5"
+    >
+      {children}
     </section>
   );
 }
