@@ -6,23 +6,11 @@ import { useState } from "react";
 
 import type { ProductImage } from "@/lib/shopify";
 
-// The mockups' own background, shown while a photo loads.
+// The mockups' background, shown while a photo loads.
 const PHOTO_BACKGROUND = "bg-[#e7e7e7]";
 
-// Opens on the featured image, with a thumbnail for every image.
-export function ProductGallery({
-  images,
-  featuredImageUrl,
-}: {
-  images: ProductImage[];
-  featuredImageUrl: string | null;
-}) {
-  const [selected, setSelected] = useState(() =>
-    Math.max(
-      0,
-      images.findIndex(({ url }) => url === featuredImageUrl),
-    ),
-  );
+export function ProductGallery({ images }: { images: ProductImage[] }) {
+  const [selected, setSelected] = useState(0);
   const image = images[selected];
 
   return (
@@ -46,8 +34,7 @@ export function ProductGallery({
               aria-pressed={index === selected}
               onClick={() => setSelected(index)}
               className={clsx(
-                "size-14 ring-1 transition-[box-shadow,opacity] motion-reduce:transition-none",
-                "focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-e2e-white-60",
+                "size-14 ring-1 focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-e2e-white-60",
                 index === selected ? "ring-e2e-text-bright" : "opacity-60 ring-e2e-hairline-strong hover:opacity-100",
               )}
             >

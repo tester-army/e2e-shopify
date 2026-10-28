@@ -5,7 +5,6 @@ const nextConfig: NextConfig = {
   experimental: {
     agentFeedback: false,
   },
-  // Product images come from Shopify's CDN.
   images: {
     remotePatterns: [{ protocol: "https", hostname: "cdn.shopify.com" }],
   },

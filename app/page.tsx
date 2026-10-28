@@ -4,8 +4,7 @@ import { Suspense } from "react";
 
 import { ProductGallery } from "@/components/product-gallery";
 import { LightButton } from "@/components/ui/light-button";
-import { formatMoney } from "@/lib/money";
-import { getProduct, isStoreConfigured } from "@/lib/shopify";
+import { getProduct, isStoreConfigured, type Money } from "@/lib/shopify";
 
 export default function HomePage() {
   return (
@@ -33,7 +32,7 @@ export default function HomePage() {
 }
 
 async function ProductCard() {
-  // Per request, so a build made before the store was set up doesn't keep saying so.
+  // Per request, not at build time, when the store may not be set up yet.
   await connection();
   if (!isStoreConfigured()) {
     return (
@@ -51,9 +50,7 @@ async function ProductCard() {
 
   return (
     <Card>
-      {product.images.length > 0 && (
-        <ProductGallery images={product.images} featuredImageUrl={product.featuredImageUrl} />
-      )}
+      {product.images.length > 0 && <ProductGallery images={product.images} />}
       <div className="flex items-baseline justify-between gap-4">
         <h2 id="product-heading" data-testid="product-title" className="type-h3-display text-e2e-text-bright">
           {product.title}
@@ -98,4 +95,8 @@ function Card({ children }: { children: ReactNode }) {
       {children}
     </section>
   );
+}
+
+function formatMoney({ amount, currencyCode }: Money): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: currencyCode }).format(Number(amount));
 }

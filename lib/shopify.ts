@@ -10,8 +10,6 @@ export type Product = {
   title: string;
   description: string;
   images: ProductImage[];
-  // The image starred in the Shopify admin, which checkout shows too.
-  featuredImageUrl: string | null;
   variantId: string;
   price: Money;
 };
@@ -20,15 +18,14 @@ export function isStoreConfigured(): boolean {
   return Boolean(process.env.SHOPIFY_STORE_DOMAIN && process.env.SHOPIFY_STOREFRONT_TOKEN);
 }
 
-// Dev stores lock the Online Store channel, so tokenless requests fail; the Headless channel's public token works.
+// Dev stores lock the Online Store channel, so the Storefront API needs the Headless channel's token.
 async function storefront<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
-  const domain = process.env.SHOPIFY_STORE_DOMAIN;
-  const token = process.env.SHOPIFY_STOREFRONT_TOKEN;
-  if (!domain || !token) throw new Error("Set SHOPIFY_STORE_DOMAIN and SHOPIFY_STOREFRONT_TOKEN in .env.local.");
-
-  const response = await fetch(`https://${domain}/api/${API_VERSION}/graphql.json`, {
+  const response = await fetch(`https://${process.env.SHOPIFY_STORE_DOMAIN}/api/${API_VERSION}/graphql.json`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Shopify-Storefront-Access-Token": token },
+    headers: {
+      "Content-Type": "application/json",
+      "X-Shopify-Storefront-Access-Token": process.env.SHOPIFY_STOREFRONT_TOKEN ?? "",
+    },
     body: JSON.stringify({ query, variables }),
   });
   const { data, errors } = await response.json();
@@ -36,27 +33,25 @@ async function storefront<T>(query: string, variables: Record<string, unknown> =
   return data;
 }
 
-type ProductResponse = {
+type ProductsResponse = {
   products: {
     nodes: {
       title: string;
       description: string;
-      featuredImage: { url: string } | null;
       images: { nodes: ProductImage[] };
       variants: { nodes: { id: string; availableForSale: boolean; price: Money }[] };
     }[];
   };
 };
 
-// Any store works: the app sells the store's newest product that's for sale.
+// The store's newest product for sale, so any store works. Shopify lists the starred image first.
 export async function getProduct(): Promise<Product | null> {
-  const { products } = await storefront<ProductResponse>(
-    `query NewestProduct {
+  const { products } = await storefront<ProductsResponse>(
+    `{
       products(first: 1, sortKey: CREATED_AT, reverse: true, query: "available_for_sale:true") {
         nodes {
           title
           description
-          featuredImage { url }
           images(first: 250) { nodes { url altText width height } }
           variants(first: 100) { nodes { id availableForSale price { amount currencyCode } } }
         }
@@ -64,7 +59,6 @@ export async function getProduct(): Promise<Product | null> {
     }`,
   );
   const product = products.nodes[0];
-  // A product with sizes may have some sold out: take the first one for sale.
   const variant = product?.variants.nodes.find(({ availableForSale }) => availableForSale);
   if (!product || !variant) return null;
 
@@ -72,7 +66,6 @@ export async function getProduct(): Promise<Product | null> {
     title: product.title,
     description: product.description,
     images: product.images.nodes,
-    featuredImageUrl: product.featuredImage?.url ?? null,
     variantId: variant.id,
     price: variant.price,
   };
@@ -82,10 +75,9 @@ type CartCreateResponse = {
   cartCreate: { cart: { checkoutUrl: string } | null; userErrors: { message: string }[] };
 };
 
-// Returns the cart's checkoutUrl, a page on the store's own domain.
 export async function createCheckout(variantId: string): Promise<string> {
   const { cartCreate } = await storefront<CartCreateResponse>(
-    `mutation CartCreate($variantId: ID!) {
+    `mutation ($variantId: ID!) {
       cartCreate(input: { lines: [{ merchandiseId: $variantId, quantity: 1 }] }) {
         cart { checkoutUrl }
         userErrors { message }
