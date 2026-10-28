@@ -22,6 +22,9 @@ async function fillCheckout({ screen, agent, browser, orders }: CheckoutFixtures
   return cartToken;
 }
 
+const FAILED_PAYMENT_CONTEXT =
+  "The card is a Shopify test card that always fails, so a payment error after Pay now is the expected outcome, not a failure.";
+
 // Every test starts past the password page. The setup typed a secret, so the agent gets no screenshots here.
 // Shopify's checkout isn't ours, so these tests retry.
 describe("Shopify checkout", { session: "shopper", skip, retries: 2, timeout: 180_000 }, () => {
@@ -47,4 +50,20 @@ describe("Shopify checkout", { session: "shopper", skip, retries: 2, timeout: 18
     expect(order).toMatchObject({ test: true, financialStatus: "PAID", lineItems: [{ title, quantity: 1 }] });
     expect(formatMoney(order!.total)).toBe(price);
   });
+
+  // Shopify shows the same message for a declined card and a gateway failure.
+  for (const [title, card] of [
+    ["card 2 is declined, and Shopify records no order", CARDS.declined],
+    ["card 3 fails at the gateway, and Shopify records no order", CARDS.gatewayFailure],
+  ]) {
+    test(title, { agentContext: FAILED_PAYMENT_CONTEXT }, async ({ app, screen, agent, browser, orders }) => {
+      await app.open("/");
+      const cartToken = await fillCheckout({ screen, agent, browser, orders }, card);
+
+      await agent.act("click Pay now");
+      await agent.waitFor("the checkout says there was an issue processing the payment");
+      await expect(browser).not.toHaveURL(/\/thank-you/);
+      expect(await orders.find(cartToken)).toBeNull();
+    });
+  }
 });
