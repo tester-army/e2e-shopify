@@ -5,8 +5,8 @@ import { formatMoney } from "../lib/money";
 import { BUYER, CARDS, DISCOUNT, skip, test, type Orders } from "./fixtures";
 import { fillCard, SHOPIFY_CHECKOUT } from "./shopify";
 
-const FILL_CONTACT_AND_DELIVERY =
-  "fill in the contact and delivery form with email {email}, first name {firstName}, last name {lastName}, address {address}, city {city}, state {state}, and ZIP code {zip}";
+const FILL_CONTACT_AND_ADDRESS =
+  "fill in the contact and address fields with email {email}, first name {firstName}, last name {lastName}, address {address}, city {city}, state {state}, and ZIP code {zip}";
 
 type CheckoutFixtures = Pick<TestFixtures, "screen" | "agent"> & { browser: Browser; orders: Orders };
 
@@ -16,20 +16,22 @@ async function fillCheckout({ screen, agent, browser, orders }: CheckoutFixtures
   await expect(browser).toHaveURL(SHOPIFY_CHECKOUT, { timeout: 30_000 });
   const cartToken = orders.track(await browser.url());
 
-  await agent.act(FILL_CONTACT_AND_DELIVERY, { params: BUYER });
-  await agent.assert("a shipping method is selected");
+  await agent.act(FILL_CONTACT_AND_ADDRESS, { params: BUYER });
+  // The address is for delivery, or for billing when the product doesn't ship.
+  await agent.assert("the email and the address are filled in");
   await fillCard(browser, card);
   return cartToken;
 }
 
-// "$949.95" less "5.00" is "$944.95", in the card's own format.
-function subtract(price: string, amount: string): string {
-  return price.replace(/[\d,]+\.\d{2}/, (number) =>
-    (Number(number.replaceAll(",", "")) - Number(amount)).toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }),
-  );
+const AMOUNT = /[\d,]+\.\d{2}/;
+
+function amountOf(price: string): number {
+  return Number(price.match(AMOUNT)?.[0].replaceAll(",", ""));
+}
+
+// An amount in the card's own format: "$60.00" and 5 give "$5.00".
+function asOnCard(price: string, amount: number): string {
+  return price.replace(AMOUNT, amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 }
 
 const FAILED_PAYMENT_CONTEXT =
@@ -58,7 +60,8 @@ describe("Shopify checkout", { session: "shopper", skip, retries: 2, timeout: 18
     await expect.poll(() => orders.find(cartToken), { timeout: 30_000 }).not.toBeNull();
     const order = await orders.find(cartToken);
     expect(order).toMatchObject({ test: true, financialStatus: "PAID", lineItems: [{ title, quantity: 1 }] });
-    expect(formatMoney(order!.total)).toBe(price);
+    // Shipping depends on the store's rates, so the subtotal is what must match the card.
+    expect(formatMoney(order!.subtotal)).toBe(price);
   });
 
   // Shopify shows the same message for a declined card and a gateway failure.
@@ -88,12 +91,13 @@ describe("Shopify checkout", { session: "shopper", skip, retries: 2, timeout: 18
     const code = await discounts.create();
     await app.open("/");
     const price = (await screen.getByTestId("product-price").textContent()) ?? "";
-    const total = subtract(price, DISCOUNT);
+    const discount = asOnCard(price, Number(DISCOUNT));
+    const subtotal = asOnCard(price, amountOf(price) - Number(DISCOUNT));
     const cartToken = await fillCheckout({ screen, agent, browser, orders }, CARDS.approved);
 
     // The code is new every run, so unique() keeps the replay cache working.
     await agent.act("apply the discount code {code}", { params: { code: unique(code) } });
-    await agent.assert(`the order summary shows the discount code ${code} and a total of ${total}`);
+    await agent.assert(`the order summary shows the discount code ${code} taking ${discount} off`);
 
     await agent.act("click Pay now");
     await expect(browser).toHaveURL(/\/thank-you/, { timeout: 60_000 });
@@ -102,6 +106,6 @@ describe("Shopify checkout", { session: "shopper", skip, retries: 2, timeout: 18
     const order = await orders.find(cartToken);
     expect(order).toMatchObject({ test: true, financialStatus: "PAID", discountCodes: [code] });
     expect(Number(order!.totalDiscounts)).toBe(Number(DISCOUNT));
-    expect(formatMoney(order!.total)).toBe(total);
+    expect(formatMoney(order!.subtotal)).toBe(subtotal);
   });
 });

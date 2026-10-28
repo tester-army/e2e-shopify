@@ -51,7 +51,8 @@ export type Order = {
   id: string;
   test: boolean;
   financialStatus: string;
-  total: Money;
+  // The line items after discounts, before shipping and tax.
+  subtotal: Money;
   totalDiscounts: string;
   discountCodes: string[];
   lineItems: { title: string; quantity: number }[];
@@ -63,7 +64,7 @@ type OrdersResponse = {
       id: string;
       test: boolean;
       displayFinancialStatus: string;
-      totalPriceSet: { shopMoney: Money };
+      subtotalPriceSet: { shopMoney: Money };
       totalDiscountsSet: { shopMoney: Money };
       discountCodes: string[];
       lineItems: { nodes: { title: string; quantity: number }[] };
@@ -80,7 +81,7 @@ export async function orderByCartToken(admin: Admin, cartToken: string): Promise
           id
           test
           displayFinancialStatus
-          totalPriceSet { shopMoney { amount currencyCode } }
+          subtotalPriceSet { shopMoney { amount currencyCode } }
           totalDiscountsSet { shopMoney { amount currencyCode } }
           discountCodes
           lineItems(first: 5) { nodes { title quantity } }
@@ -96,7 +97,7 @@ export async function orderByCartToken(admin: Admin, cartToken: string): Promise
     id: order.id,
     test: order.test,
     financialStatus: order.displayFinancialStatus,
-    total: order.totalPriceSet.shopMoney,
+    subtotal: order.subtotalPriceSet.shopMoney,
     totalDiscounts: order.totalDiscountsSet.shopMoney.amount,
     discountCodes: order.discountCodes,
     lineItems: order.lineItems.nodes,
