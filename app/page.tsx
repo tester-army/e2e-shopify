@@ -1,10 +1,10 @@
-import Image from "next/image";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
 
+import { ProductGallery } from "@/components/product-gallery";
 import { LightButton } from "@/components/ui/light-button";
 import { formatMoney } from "@/lib/money";
-import { getProduct, isStoreConfigured, PRODUCT_HANDLE } from "@/lib/shopify";
+import { getProduct, isStoreConfigured } from "@/lib/shopify";
 
 export default function HomePage() {
   return (
@@ -43,37 +43,25 @@ async function ProductCard() {
 
   const product = await getProduct();
   if (!product) {
-    return (
-      <Notice
-        title="Product not found"
-        detail={`The store's Headless channel has no product with the handle ${PRODUCT_HANDLE}.`}
-      />
-    );
+    return <Notice title="Nothing for sale" detail="The store's Headless channel has no product for sale yet." />;
   }
 
   return (
     <Card>
-      <div className="flex gap-4">
-        {product.image && (
-          <Image
-            src={product.image.url}
-            alt={product.image.altText ?? ""}
-            width={product.image.width}
-            height={product.image.height}
-            sizes="64px"
-            className="size-16 shrink-0 bg-e2e-paper-0 object-contain"
-          />
-        )}
-        <div className="flex min-w-0 flex-col gap-1">
-          <h2 id="product-heading" data-testid="product-title" className="type-h3-display text-e2e-text-bright">
-            {product.title}
-          </h2>
-          <p data-testid="product-price" className="type-body-s font-medium text-e2e-text-bright">
-            {formatMoney(product.price)}
-          </p>
-        </div>
+      {product.images.length > 0 && (
+        <ProductGallery images={product.images} featuredImageUrl={product.featuredImageUrl} />
+      )}
+      <div className="flex items-baseline justify-between gap-4">
+        <h2 id="product-heading" data-testid="product-title" className="type-h3-display text-e2e-text-bright">
+          {product.title}
+        </h2>
+        <p data-testid="product-price" className="shrink-0 type-body-s font-medium text-e2e-text-bright">
+          {formatMoney(product.price)}
+        </p>
       </div>
-      {product.description && <p className="line-clamp-3 type-body-s text-e2e-text-soft">{product.description}</p>}
+      {product.description && (
+        <p className="-mt-2 line-clamp-3 type-body-s text-e2e-text-soft">{product.description}</p>
+      )}
       <form action="/checkout" method="post">
         <LightButton type="submit">Buy now</LightButton>
       </form>

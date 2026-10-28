@@ -1,16 +1,17 @@
 import "server-only";
 
-// A product from the dev store's demo data.
-export const PRODUCT_HANDLE = "the-inventory-not-tracked-snowboard";
-
 const API_VERSION = "2026-10";
 
 export type Money = { amount: string; currencyCode: string };
 
+export type ProductImage = { url: string; altText: string | null; width: number; height: number };
+
 export type Product = {
   title: string;
   description: string;
-  image: { url: string; altText: string | null; width: number; height: number } | null;
+  images: ProductImage[];
+  // The image starred in the Shopify admin, which checkout shows too.
+  featuredImageUrl: string | null;
   variantId: string;
   price: Money;
 };
@@ -36,33 +37,42 @@ async function storefront<T>(query: string, variables: Record<string, unknown> =
 }
 
 type ProductResponse = {
-  product: {
-    title: string;
-    description: string;
-    featuredImage: Product["image"];
-    variants: { nodes: { id: string; price: Money }[] };
-  } | null;
+  products: {
+    nodes: {
+      title: string;
+      description: string;
+      featuredImage: { url: string } | null;
+      images: { nodes: ProductImage[] };
+      variants: { nodes: { id: string; availableForSale: boolean; price: Money }[] };
+    }[];
+  };
 };
 
+// Any store works: the app sells the store's newest product that's for sale.
 export async function getProduct(): Promise<Product | null> {
-  const { product } = await storefront<ProductResponse>(
-    `query Product($handle: String!) {
-      product(handle: $handle) {
-        title
-        description
-        featuredImage { url altText width height }
-        variants(first: 1) { nodes { id price { amount currencyCode } } }
+  const { products } = await storefront<ProductResponse>(
+    `query NewestProduct {
+      products(first: 1, sortKey: CREATED_AT, reverse: true, query: "available_for_sale:true") {
+        nodes {
+          title
+          description
+          featuredImage { url }
+          images(first: 250) { nodes { url altText width height } }
+          variants(first: 100) { nodes { id availableForSale price { amount currencyCode } } }
+        }
       }
     }`,
-    { handle: PRODUCT_HANDLE },
   );
-  const variant = product?.variants.nodes[0];
+  const product = products.nodes[0];
+  // A product with sizes may have some sold out: take the first one for sale.
+  const variant = product?.variants.nodes.find(({ availableForSale }) => availableForSale);
   if (!product || !variant) return null;
 
   return {
     title: product.title,
     description: product.description,
-    image: product.featuredImage,
+    images: product.images.nodes,
+    featuredImageUrl: product.featuredImage?.url ?? null,
     variantId: variant.id,
     price: variant.price,
   };
