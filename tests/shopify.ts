@@ -52,6 +52,8 @@ export type Order = {
   test: boolean;
   financialStatus: string;
   total: Money;
+  totalDiscounts: string;
+  discountCodes: string[];
   lineItems: { title: string; quantity: number }[];
 };
 
@@ -62,6 +64,8 @@ type OrdersResponse = {
       test: boolean;
       displayFinancialStatus: string;
       totalPriceSet: { shopMoney: Money };
+      totalDiscountsSet: { shopMoney: Money };
+      discountCodes: string[];
       lineItems: { nodes: { title: string; quantity: number }[] };
     }[];
   };
@@ -77,6 +81,8 @@ export async function orderByCartToken(admin: Admin, cartToken: string): Promise
           test
           displayFinancialStatus
           totalPriceSet { shopMoney { amount currencyCode } }
+          totalDiscountsSet { shopMoney { amount currencyCode } }
+          discountCodes
           lineItems(first: 5) { nodes { title quantity } }
         }
       }
@@ -91,6 +97,8 @@ export async function orderByCartToken(admin: Admin, cartToken: string): Promise
     test: order.test,
     financialStatus: order.displayFinancialStatus,
     total: order.totalPriceSet.shopMoney,
+    totalDiscounts: order.totalDiscountsSet.shopMoney.amount,
+    discountCodes: order.discountCodes,
     lineItems: order.lineItems.nodes,
   };
 }
@@ -98,6 +106,39 @@ export async function orderByCartToken(admin: Admin, cartToken: string): Promise
 // A test order can be deleted at once, without archiving it first.
 export async function deleteOrder(admin: Admin, id: string): Promise<void> {
   await admin(`mutation OrderDelete($id: ID!) { orderDelete(orderId: $id) { deletedId } }`, { id });
+}
+
+type DiscountCreateResponse = {
+  discountCodeBasicCreate: { codeDiscountNode: { id: string } | null; userErrors: { message: string }[] };
+};
+
+// A code anyone can use once, for a fixed amount off the order. Checkout accepts it at once.
+export async function createDiscountCode(admin: Admin, code: string, amount: string): Promise<string> {
+  const { discountCodeBasicCreate: result } = await admin<DiscountCreateResponse>(
+    `mutation DiscountCreate($discount: DiscountCodeBasicInput!) {
+      discountCodeBasicCreate(basicCodeDiscount: $discount) {
+        codeDiscountNode { id }
+        userErrors { message }
+      }
+    }`,
+    {
+      discount: {
+        title: `e2e test ${code}`,
+        code,
+        // A minute early, in case this machine's clock runs ahead of Shopify's.
+        startsAt: new Date(Date.now() - 60_000).toISOString(),
+        context: { all: "ALL" },
+        customerGets: { value: { discountAmount: { amount, appliesOnEachItem: false } }, items: { all: true } },
+        usageLimit: 1,
+      },
+    },
+  );
+  if (!result.codeDiscountNode) throw new Error(`Admin API: ${result.userErrors[0]?.message ?? "no discount"}`);
+  return result.codeDiscountNode.id;
+}
+
+export async function deleteDiscountCode(admin: Admin, id: string): Promise<void> {
+  await admin(`mutation DiscountDelete($id: ID!) { discountCodeDelete(id: $id) { deletedCodeDiscountId } }`, { id });
 }
 
 export const CARD = { expiry: "12 / 34", securityCode: "111", name: "Ada Lovelace" };

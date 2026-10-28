@@ -1,8 +1,8 @@
 import { describe, type Browser } from "@e2e-dev/web";
-import { expect, type TestFixtures } from "e2e";
+import { expect, unique, type TestFixtures } from "e2e";
 
 import { formatMoney } from "../lib/money";
-import { BUYER, CARDS, skip, test, type Orders } from "./fixtures";
+import { BUYER, CARDS, DISCOUNT, skip, test, type Orders } from "./fixtures";
 import { fillCard, SHOPIFY_CHECKOUT } from "./shopify";
 
 const FILL_CONTACT_AND_DELIVERY =
@@ -20,6 +20,16 @@ async function fillCheckout({ screen, agent, browser, orders }: CheckoutFixtures
   await agent.assert("a shipping method is selected");
   await fillCard(browser, card);
   return cartToken;
+}
+
+// "$949.95" less "5.00" is "$944.95", in the card's own format.
+function subtract(price: string, amount: string): string {
+  return price.replace(/[\d,]+\.\d{2}/, (number) =>
+    (Number(number.replaceAll(",", "")) - Number(amount)).toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }),
+  );
 }
 
 const FAILED_PAYMENT_CONTEXT =
@@ -66,4 +76,32 @@ describe("Shopify checkout", { session: "shopper", skip, retries: 2, timeout: 18
       expect(await orders.find(cartToken)).toBeNull();
     });
   }
+
+  test("a discount code lowers the total, and Shopify records it", async ({
+    app,
+    screen,
+    agent,
+    browser,
+    orders,
+    discounts,
+  }) => {
+    const code = await discounts.create();
+    await app.open("/");
+    const price = (await screen.getByTestId("product-price").textContent()) ?? "";
+    const total = subtract(price, DISCOUNT);
+    const cartToken = await fillCheckout({ screen, agent, browser, orders }, CARDS.approved);
+
+    // The code is new every run, so unique() keeps the replay cache working.
+    await agent.act("apply the discount code {code}", { params: { code: unique(code) } });
+    await agent.assert(`the order summary shows the discount code ${code} and a total of ${total}`);
+
+    await agent.act("click Pay now");
+    await expect(browser).toHaveURL(/\/thank-you/, { timeout: 60_000 });
+
+    await expect.poll(() => orders.find(cartToken), { timeout: 30_000 }).not.toBeNull();
+    const order = await orders.find(cartToken);
+    expect(order).toMatchObject({ test: true, financialStatus: "PAID", discountCodes: [code] });
+    expect(Number(order!.totalDiscounts)).toBe(Number(DISCOUNT));
+    expect(formatMoney(order!.total)).toBe(total);
+  });
 });

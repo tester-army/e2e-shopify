@@ -1,9 +1,13 @@
+import { randomBytes } from "node:crypto";
+
 import { test as base } from "@e2e-dev/web";
 
 import {
   assertDevelopmentStore,
   cartTokenFromCheckoutUrl,
   createAdmin,
+  createDiscountCode,
+  deleteDiscountCode,
   deleteOrder,
   orderByCartToken,
   type Admin,
@@ -37,8 +41,15 @@ export type Orders = {
   find(cartToken: string): Promise<Order | null>;
 };
 
-// Orders a test places are deleted after it, after a failure too.
-export const test = withShopify.extend<{ orders: Orders }>({
+export const DISCOUNT = "5.00";
+
+type Discounts = {
+  // A fresh code for this test only, DISCOUNT off the order, usable once.
+  create(): Promise<string>;
+};
+
+// Orders a test places and discount codes it creates are deleted after it, after a failure too.
+export const test = withShopify.extend<{ orders: Orders; discounts: Discounts }>({
   orders: async ({ shopify }, use) => {
     const cartTokens = new Set<string>();
 
@@ -55,6 +66,20 @@ export const test = withShopify.extend<{ orders: Orders }>({
       const order = await orderByCartToken(shopify, cartToken);
       if (order?.test) await deleteOrder(shopify, order.id);
     }
+  },
+
+  discounts: async ({ shopify }, use) => {
+    const ids: string[] = [];
+
+    await use({
+      create: async () => {
+        const code = `E2E-${randomBytes(3).toString("hex").toUpperCase()}`;
+        ids.push(await createDiscountCode(shopify, code, DISCOUNT));
+        return code;
+      },
+    });
+
+    for (const id of ids) await deleteDiscountCode(shopify, id);
   },
 });
 
