@@ -14,41 +14,36 @@ import {
   type Order,
 } from "./shopify";
 
-const env = process.env;
-
-export const skip =
-  !env.SHOPIFY_STORE_DOMAIN || !env.SHOPIFY_STOREFRONT_TOKEN
-    ? "set SHOPIFY_STORE_DOMAIN and SHOPIFY_STOREFRONT_TOKEN to run the Shopify tests"
-    : !env.SHOPIFY_STORE_PASSWORD
-      ? "set SHOPIFY_STORE_PASSWORD to get past the dev store's password page"
-      : !env.SHOPIFY_CLIENT_ID || !env.SHOPIFY_CLIENT_SECRET
-        ? "set SHOPIFY_CLIENT_ID and SHOPIFY_CLIENT_SECRET to check orders through the Admin API"
-        : !env.AI_GATEWAY_API_KEY
-          ? "set AI_GATEWAY_API_KEY to run the agent tests"
-          : false;
+const REQUIRED = [
+  "SHOPIFY_STORE_DOMAIN",
+  "SHOPIFY_STOREFRONT_TOKEN",
+  "SHOPIFY_STORE_PASSWORD",
+  "SHOPIFY_CLIENT_ID",
+  "SHOPIFY_CLIENT_SECRET",
+  "AI_GATEWAY_API_KEY",
+];
+const missing = REQUIRED.filter((name) => !process.env[name]);
+export const skip = missing.length > 0 ? `set ${missing.join(", ")} to run the Shopify tests` : false;
 
 const withShopify = base.extend<{ shopify: Admin }>({
   shopify: async ({}, use) => {
-    const admin = await createAdmin(env.SHOPIFY_CLIENT_ID ?? "", env.SHOPIFY_CLIENT_SECRET ?? "");
+    const admin = await createAdmin(process.env.SHOPIFY_CLIENT_ID ?? "", process.env.SHOPIFY_CLIENT_SECRET ?? "");
     await assertDevelopmentStore(admin);
     await use(admin);
   },
 });
 
 export type Orders = {
-  // Remembers the checkout's cart token, so the order is deleted after the test.
+  // Remembers the checkout's cart token, so its order is deleted after the test.
   track(checkoutUrl: string): string;
   find(cartToken: string): Promise<Order | null>;
 };
 
-export const DISCOUNT = "5.00";
+type Discounts = { create(): Promise<string> };
 
-type Discounts = {
-  // A fresh code for this test only, DISCOUNT off the order, usable once.
-  create(): Promise<string>;
-};
+export const DISCOUNT = 5;
 
-// Orders a test places and discount codes it creates are deleted after it, after a failure too.
+// Orders a test places and codes it creates are deleted after it, after a failure too.
 export const test = withShopify.extend<{ orders: Orders; discounts: Discounts }>({
   orders: async ({ shopify }, use) => {
     const cartTokens = new Set<string>();

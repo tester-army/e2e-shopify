@@ -1,17 +1,15 @@
 import type { Browser } from "@e2e-dev/web";
 
-import type { Money } from "../lib/shopify";
-
 const API_VERSION = "2026-10";
 
 export const STORE = `https://${process.env.SHOPIFY_STORE_DOMAIN}`;
 
-// <store>/checkouts/cn/<cart token>/en-us
+// <store>/checkouts/cn/<cart token>/…
 export const SHOPIFY_CHECKOUT = /\.myshopify\.com\/checkouts\/cn\/[^/?]+/;
 
 export type Admin = <T>(query: string, variables?: Record<string, unknown>) => Promise<T>;
 
-// The client credentials grant: Dev Dashboard apps get no static token. The token lasts 24 hours.
+// Dev Dashboard apps have no static token: the client credentials grant gives one that lasts 24 hours.
 export async function createAdmin(clientId: string, clientSecret: string): Promise<Admin> {
   const response = await fetch(`${STORE}/admin/oauth/access_token`, {
     method: "POST",
@@ -33,7 +31,7 @@ export async function createAdmin(clientId: string, clientSecret: string): Promi
   };
 }
 
-// The tests create and delete orders, so they refuse a store that isn't a development store.
+// The tests create and delete orders, so they refuse any store that isn't a development store.
 export async function assertDevelopmentStore(admin: Admin): Promise<void> {
   const { shop } = await admin<{ shop: { plan: { partnerDevelopment: boolean } } }>(
     `{ shop { plan { partnerDevelopment } } }`,
@@ -47,42 +45,30 @@ export function cartTokenFromCheckoutUrl(url: string): string {
   return token;
 }
 
+type Amount = { shopMoney: { amount: string } };
+
 export type Order = {
   id: string;
   test: boolean;
-  financialStatus: string;
+  displayFinancialStatus: string;
   // The line items after discounts, before shipping and tax.
-  subtotal: Money;
-  totalDiscounts: string;
+  subtotalPriceSet: Amount;
+  totalDiscountsSet: Amount;
   discountCodes: string[];
-  lineItems: { title: string; quantity: number }[];
+  lineItems: { nodes: { title: string; quantity: number }[] };
 };
 
-type OrdersResponse = {
-  orders: {
-    nodes: {
-      id: string;
-      test: boolean;
-      displayFinancialStatus: string;
-      subtotalPriceSet: { shopMoney: Money };
-      totalDiscountsSet: { shopMoney: Money };
-      discountCodes: string[];
-      lineItems: { nodes: { title: string; quantity: number }[] };
-    }[];
-  };
-};
-
-// The cart token from our checkoutUrl is the order's cart_token.
+// The cart token in our checkout URL is the order's cart_token.
 export async function orderByCartToken(admin: Admin, cartToken: string): Promise<Order | null> {
-  const { orders } = await admin<OrdersResponse>(
-    `query Order($query: String!) {
+  const { orders } = await admin<{ orders: { nodes: Order[] } }>(
+    `query ($query: String!) {
       orders(first: 1, query: $query) {
         nodes {
           id
           test
           displayFinancialStatus
-          subtotalPriceSet { shopMoney { amount currencyCode } }
-          totalDiscountsSet { shopMoney { amount currencyCode } }
+          subtotalPriceSet { shopMoney { amount } }
+          totalDiscountsSet { shopMoney { amount } }
           discountCodes
           lineItems(first: 5) { nodes { title quantity } }
         }
@@ -90,33 +76,22 @@ export async function orderByCartToken(admin: Admin, cartToken: string): Promise
     }`,
     { query: `cart_token:${cartToken}` },
   );
-  const order = orders.nodes[0];
-  if (!order) return null;
-
-  return {
-    id: order.id,
-    test: order.test,
-    financialStatus: order.displayFinancialStatus,
-    subtotal: order.subtotalPriceSet.shopMoney,
-    totalDiscounts: order.totalDiscountsSet.shopMoney.amount,
-    discountCodes: order.discountCodes,
-    lineItems: order.lineItems.nodes,
-  };
+  return orders.nodes[0] ?? null;
 }
 
-// A test order can be deleted at once, without archiving it first.
+// Test orders can be deleted without archiving them first.
 export async function deleteOrder(admin: Admin, id: string): Promise<void> {
-  await admin(`mutation OrderDelete($id: ID!) { orderDelete(orderId: $id) { deletedId } }`, { id });
+  await admin(`mutation ($id: ID!) { orderDelete(orderId: $id) { deletedId } }`, { id });
 }
 
 type DiscountCreateResponse = {
   discountCodeBasicCreate: { codeDiscountNode: { id: string } | null; userErrors: { message: string }[] };
 };
 
-// A code anyone can use once, for a fixed amount off the order. Checkout accepts it at once.
-export async function createDiscountCode(admin: Admin, code: string, amount: string): Promise<string> {
+// A code anyone can use once, for a fixed amount off the order.
+export async function createDiscountCode(admin: Admin, code: string, amount: number): Promise<string> {
   const { discountCodeBasicCreate: result } = await admin<DiscountCreateResponse>(
-    `mutation DiscountCreate($discount: DiscountCodeBasicInput!) {
+    `mutation ($discount: DiscountCodeBasicInput!) {
       discountCodeBasicCreate(basicCodeDiscount: $discount) {
         codeDiscountNode { id }
         userErrors { message }
@@ -129,7 +104,10 @@ export async function createDiscountCode(admin: Admin, code: string, amount: str
         // A minute early, in case this machine's clock runs ahead of Shopify's.
         startsAt: new Date(Date.now() - 60_000).toISOString(),
         context: { all: "ALL" },
-        customerGets: { value: { discountAmount: { amount, appliesOnEachItem: false } }, items: { all: true } },
+        customerGets: {
+          value: { discountAmount: { amount: amount.toFixed(2), appliesOnEachItem: false } },
+          items: { all: true },
+        },
         usageLimit: 1,
       },
     },
@@ -139,17 +117,15 @@ export async function createDiscountCode(admin: Admin, code: string, amount: str
 }
 
 export async function deleteDiscountCode(admin: Admin, id: string): Promise<void> {
-  await admin(`mutation DiscountDelete($id: ID!) { discountCodeDelete(id: $id) { deletedCodeDiscountId } }`, { id });
+  await admin(`mutation ($id: ID!) { discountCodeDelete(id: $id) { deletedCodeDiscountId } }`, { id });
 }
 
-export const CARD = { expiry: "12 / 34", securityCode: "111", name: "Ada Lovelace" };
-
-// Shopify's card fields are iframes from another site, which the agent's tree leaves out. Each frame also holds
-// hidden decoy inputs for the other fields, so the visible one is found by role.
+// Shopify's card fields are iframes from another site, which the agent can't see. Each frame also holds hidden
+// decoy inputs, so the visible one is found by role.
 export async function fillCard(browser: Browser, number: string): Promise<void> {
   const field = (name: string) => browser.frameLocator(`iframe[title="${name}"]`).getByRole("textbox", name);
   await field("Card number").fill(number);
-  await field("Expiration date (MM / YY)").fill(CARD.expiry);
-  await field("Security code").fill(CARD.securityCode);
-  await field("Name on card").fill(CARD.name);
+  await field("Expiration date (MM / YY)").fill("12 / 34");
+  await field("Security code").fill("111");
+  await field("Name on card").fill("Ada Lovelace");
 }
