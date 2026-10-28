@@ -34,11 +34,11 @@ cp .env.example .env.local   # then fill it in
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The card shows your product, and Buy now opens Shopify's checkout.
+Open [http://localhost:3000](http://localhost:3000). The card shows your product, and Buy now opens Shopify's checkout. If the card says **Connect your dev store**, a variable is missing; **Nothing for sale** means no active product is in the Headless channel.
 
 ## Connect your Shopify store
 
-Everything here is free. Each step ends with the value it gives for `.env.local`.
+Everything here is free. The steps end with the values for `.env.local`.
 
 ### 1. Create a dev store
 
@@ -93,18 +93,11 @@ Only the tests use it, to check and delete orders.
 
 → `SHOPIFY_CLIENT_ID` and `SHOPIFY_CLIENT_SECRET`.
 
-### 6. Fill in `.env.local`
+### 6. Add an AI Gateway key
 
-| Variable                   | From                                                                   |
-| -------------------------- | ---------------------------------------------------------------------- |
-| `SHOPIFY_STORE_DOMAIN`     | Step 1                                                                 |
-| `SHOPIFY_STOREFRONT_TOKEN` | Step 3                                                                 |
-| `SHOPIFY_STORE_PASSWORD`   | Step 4                                                                 |
-| `SHOPIFY_CLIENT_ID`        | Step 5                                                                 |
-| `SHOPIFY_CLIENT_SECRET`    | Step 5                                                                 |
-| `AI_GATEWAY_API_KEY`       | The Vercel AI Gateway, for the tests' agent (or link a Vercel project) |
+The tests' agent calls its model through the Vercel AI Gateway: create a key in the Vercel dashboard under **AI Gateway → API Keys**, or link a Vercel project, which gives the Gateway an OIDC token instead.
 
-Restart `npm run dev`. **Connect your dev store** on the card means a variable is missing; **Nothing for sale** means no active product is in the Headless channel.
+→ `AI_GATEWAY_API_KEY`.
 
 ## End-to-end tests
 
@@ -116,7 +109,7 @@ Restart `npm run dev`. **Connect your dev store** on the card means a variable i
 - **Declined or failed:** no order.
 - **Discount:** the test creates a fresh code through the Admin API first, and the order lists it with $5.00 off.
 
-Orders and codes are deleted afterwards, even after a failure, and the tests refuse a store that isn't a development store. Tests on Shopify's page retry twice. A run takes about 2.5 minutes and $0.02 of model calls.
+Until every variable is set, the checkout tests are skipped with the names of the missing ones, and only the home test runs. Orders and codes are deleted afterwards, even after a failure, and the tests refuse a store that isn't a development store. Tests on Shopify's page retry twice. A run takes about 2.5 minutes and $0.02 of model calls.
 
 With the dev server running:
 
