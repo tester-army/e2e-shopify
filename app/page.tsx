@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
 
@@ -32,6 +33,8 @@ export default function HomePage() {
 }
 
 async function ProductCard() {
+  // Per request, so a build made before the store was set up doesn't keep saying so.
+  await connection();
   if (!isStoreConfigured()) {
     return (
       <Notice
