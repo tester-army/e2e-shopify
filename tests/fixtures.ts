@@ -31,7 +31,7 @@ const withShopify = base.extend<{ shopify: Admin }>({
   },
 });
 
-type Orders = {
+export type Orders = {
   // Remembers the checkout's cart token, so the order is deleted after the test.
   track(checkoutUrl: string): string;
   find(cartToken: string): Promise<Order | null>;
