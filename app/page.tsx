@@ -65,7 +65,7 @@ async function ProductCard() {
           />
         )}
         <div className="flex min-w-0 flex-col gap-1">
-          <h2 id="product-heading" className="type-h3-display text-e2e-text-bright">
+          <h2 id="product-heading" data-testid="product-title" className="type-h3-display text-e2e-text-bright">
             {product.title}
           </h2>
           <p data-testid="product-price" className="type-body-s font-medium text-e2e-text-bright">
