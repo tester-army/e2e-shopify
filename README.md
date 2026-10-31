@@ -26,7 +26,7 @@ Use any future expiry date, any security code, and any name. Shopify shows the s
 
 ## Getting started
 
-Connect a Shopify store first (below, about 15 minutes), then:
+Connect a Shopify store first, then:
 
 ```bash
 npm install
@@ -109,7 +109,7 @@ The tests' agent calls its model through the Vercel AI Gateway: create a key in 
 - **Declined or failed:** no order.
 - **Discount:** the test creates a fresh code through the Admin API first, and the order lists it with $5.00 off.
 
-Until every variable is set, the checkout tests are skipped with the names of the missing ones, and only the home test runs. Orders and codes are deleted afterwards, even after a failure, and the tests refuse a store that isn't a development store. Tests on Shopify's page retry twice. A run takes about 2.5 minutes and $0.02 of model calls.
+Until every variable is set, the checkout tests are skipped with the names of the missing ones, and only the home test runs. Orders and codes are deleted afterwards, even after a failure, and the tests refuse a store that isn't a development store. Tests on Shopify's page retry twice.
 
 With the dev server running:
 
