@@ -2,27 +2,28 @@ import { connection } from "next/server";
 import { Suspense, type ReactNode } from "react";
 
 import { ProductGallery } from "@/components/product-gallery";
-import { LightButton } from "@/components/ui/light-button";
+import { Button } from "@/components/ui/button";
 import { getProduct, isStoreConfigured, type Money } from "@/lib/shopify";
 
 export default function HomePage() {
   return (
-    <main className="flex flex-1 flex-col justify-center px-6 py-10 sm:px-10">
-      <div className="mx-auto grid w-full max-w-300 items-center gap-12 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-20">
+    <main className="flex flex-1 flex-col justify-center py-e2e-8">
+      <div className="mx-auto grid w-full max-w-312 items-center gap-e2e-8 px-e2e-3 md:px-e2e-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-e2e-10">
         <div>
-          <h1 className="type-h1 text-e2e-text-primary">
+          <p className="type-caption text-e2e-mint">Shopify example</p>
+          <h1 className="mt-e2e-2 type-h1 text-e2e-off-white">
             Shopify checkout,
             <br />
             tested end to end
           </h1>
-          <p className="mt-4 max-w-120 type-body text-e2e-text-secondary">
-            A real Shopify checkout on a dev store, tested with e2e: in the browser, and against the order Shopify
+          <p className="mt-e2e-3 max-w-120 type-body-l text-e2e-neutral-400">
+            a real Shopify checkout on a dev store, tested with e2e: in the browser, and against the order Shopify
             recorded.
           </p>
-          <p className="mt-8 type-code-s text-e2e-text-faint">Test card 1, any future expiry, any CVC.</p>
+          <p className="mt-e2e-4 type-caption text-e2e-neutral-500">test card 1, any future expiry, any cvc.</p>
         </div>
 
-        <Suspense fallback={<Notice title="Loading…" detail="Asking Shopify for the product." />}>
+        <Suspense fallback={<Notice title="loading…" detail="asking Shopify for the product." />}>
           <ProductCard />
         </Suspense>
       </div>
@@ -36,51 +37,61 @@ async function ProductCard() {
   if (!isStoreConfigured()) {
     return (
       <Notice
-        title="Connect your dev store"
-        detail="Set SHOPIFY_STORE_DOMAIN and SHOPIFY_STOREFRONT_TOKEN in .env.local, then reload."
+        title="connect your dev store"
+        detail={
+          <>
+            set <code className="type-code-s text-e2e-off-white">SHOPIFY_STORE_DOMAIN</code> and{" "}
+            <code className="type-code-s text-e2e-off-white">SHOPIFY_STOREFRONT_TOKEN</code> in{" "}
+            <code className="type-code-s text-e2e-off-white">.env.local</code>, then reload.
+          </>
+        }
       />
     );
   }
 
   const product = await getProduct();
   if (!product) {
-    return <Notice title="Nothing for sale" detail="The store's Headless channel has no product for sale yet." />;
+    return <Notice title="nothing for sale" detail="the store's Headless channel has no product for sale yet." />;
   }
 
   return (
     <Card>
       {product.images.length > 0 && <ProductGallery images={product.images} />}
-      <div className="flex items-baseline justify-between gap-4">
-        <h2 id="product-heading" data-testid="product-title" className="type-h3-display text-e2e-text-bright">
+      <div className="flex items-baseline justify-between gap-e2e-2">
+        <h2 id="product-heading" data-testid="product-title" className="type-h4 text-e2e-off-white">
           {product.title}
         </h2>
-        <p data-testid="product-price" className="shrink-0 type-body-s font-medium text-e2e-text-bright">
+        <p data-testid="product-price" className="shrink-0 type-body-m text-e2e-off-white">
           {formatMoney(product.price)}
         </p>
       </div>
       {product.description && (
-        <p className="-mt-2 line-clamp-3 type-body-s text-e2e-text-soft">{product.description}</p>
+        <p className="-mt-e2e-1 line-clamp-3 type-body-m text-e2e-neutral-300">{product.description}</p>
       )}
       <form action="/checkout" method="post">
-        <LightButton type="submit">Buy now</LightButton>
+        <Button type="submit" className="w-full">
+          buy now
+        </Button>
       </form>
-      <p className="type-caption text-e2e-text-faint">
-        You pay on Shopify&apos;s checkout, on the store&apos;s own domain.
+      <p className="type-body-s text-e2e-neutral-500">
+        you pay on Shopify&apos;s checkout, on the store&apos;s own domain.
       </p>
     </Card>
   );
 }
 
-function Notice({ title, detail }: { title: string; detail: string }) {
+function Notice({ title, detail }: { title: string; detail: ReactNode }) {
   return (
     <Card>
-      <div className="flex flex-col gap-1">
-        <h2 id="product-heading" className="type-h3-display text-e2e-text-bright">
+      <div className="flex flex-col gap-e2e-1">
+        <h2 id="product-heading" className="type-h4 text-e2e-off-white">
           {title}
         </h2>
-        <p className="type-body-s text-e2e-text-soft">{detail}</p>
+        <p className="type-body-m text-e2e-neutral-300">{detail}</p>
       </div>
-      <LightButton disabled>Buy now</LightButton>
+      <Button disabled className="w-full">
+        buy now
+      </Button>
     </Card>
   );
 }
@@ -89,7 +100,7 @@ function Card({ children }: { children: ReactNode }) {
   return (
     <section
       aria-labelledby="product-heading"
-      className="flex flex-col gap-4 border border-e2e-hairline-strong bg-e2e-panel p-5"
+      className="flex flex-col gap-e2e-3 border border-e2e-neutral-800 bg-e2e-neutral-800/40 p-e2e-3"
     >
       {children}
     </section>

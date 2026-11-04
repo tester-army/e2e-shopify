@@ -35,9 +35,9 @@ async function fillCard(browser: Browser, number: string): Promise<void> {
   await field("Name on card").fill(`${BUYER.firstName} ${BUYER.lastName}`);
 }
 
-// From our Buy now button to Shopify's checkout, ready to pay. Returns the cart token.
+// From our buy now button to Shopify's checkout, ready to pay. Returns the cart token.
 async function fillCheckout({ screen, agent, browser, orders }: CheckoutFixtures, card: string): Promise<string> {
-  await screen.getByRole("button", "Buy now").click();
+  await screen.getByRole("button", "buy now").click();
   await expect(browser).toHaveURL(SHOPIFY_CHECKOUT, { timeout: 30_000 });
   const cartToken = orders.track(await browser.url());
 

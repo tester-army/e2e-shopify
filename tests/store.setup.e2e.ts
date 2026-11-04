@@ -9,7 +9,7 @@ test.setup(
   { sessions: ["shopper"], retries: 2, timeout: 120_000 },
   async ({ app, screen, agent, browser, session }) => {
     await app.open("/");
-    await screen.getByRole("button", "Buy now").click();
+    await screen.getByRole("button", "buy now").click();
     await expect(browser).toHaveURL(`${STORE}/password`, { timeout: 30_000 });
 
     await agent.act("enter the store password {password} and enter the store", {

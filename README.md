@@ -2,7 +2,7 @@
 
 A Next.js storefront that sells one product through Shopify's checkout on a free dev store, used as an example of end-to-end testing a checkout you don't own with [e2e](https://www.npmjs.com/package/e2e).
 
-![Product card with photos, a price, and a Buy now button](docs/screenshot.png)
+![Product card with photos, a price, and a buy now button](docs/screenshot.png)
 
 ## How it works
 
@@ -34,7 +34,7 @@ cp .env.example .env.local   # then fill it in
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The card shows your product, and Buy now opens Shopify's checkout. If the card says **Connect your dev store**, a variable is missing; **Nothing for sale** means no active product is in the Headless channel.
+Open [http://localhost:3000](http://localhost:3000). The card shows your product, and **buy now** opens Shopify's checkout. If the card says **connect your dev store**, a variable is missing; **nothing for sale** means no active product is in the Headless channel.
 
 ## Connect your Shopify store
 
@@ -101,7 +101,7 @@ The tests' agent calls its model through the Vercel AI Gateway: create a key in 
 
 ## End-to-end tests
 
-`tests/store.setup.e2e.ts` clicks Buy now, lands on the dev store's password page, and has the agent type the password as a `secrets` handle: the model only sees `<secret:store-password>`. It saves the session, so every checkout test starts past the password.
+`tests/store.setup.e2e.ts` clicks **buy now**, lands on the dev store's password page, and has the agent type the password as a `secrets` handle: the model only sees `<secret:store-password>`. It saves the session, so every checkout test starts past the password.
 
 `tests/checkout.e2e.ts` pays with cards `1`, `2`, and `3`, and with a discount code. Our page uses exact locators and Shopify's checkout uses `agent.act` and `agent.assert`, except the card fields: they're iframes from another site, which the agent can't see, so the test fills them with `browser.frameLocator`. Then each test asks the Admin API what Shopify recorded:
 
