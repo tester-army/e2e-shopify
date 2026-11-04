@@ -27,7 +27,7 @@ export function ProductGallery({ images }: { images: ProductImage[] }) {
                 aria-pressed={index === selected}
                 onClick={() => setSelected(index)}
                 className={clsx(
-                  "size-12 shrink-0 border outline-none focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-e2e-green",
+                  "size-12 shrink-0 border focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-e2e-green",
                   index === selected ? "border-e2e-off-white" : "border-e2e-neutral-700 opacity-60 hover:opacity-100",
                 )}
               >
