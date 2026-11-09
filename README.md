@@ -128,3 +128,10 @@ To test a different URL, set `APP_URL`. Configuration lives in `e2e.config.ts`.
 | `npm run lint`     | Run ESLint           |
 | `npm run format`   | Format with Prettier |
 | `npm run test:e2e` | Run the e2e tests    |
+
+<a href="https://e2e.com">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/e2e-logo-white.png">
+    <img src="docs/e2e-logo-black.png" alt="e2e" width="160">
+  </picture>
+</a>
